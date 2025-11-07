@@ -4,6 +4,7 @@ namespace App\Admin\Controllers;
 
 use App\Helpers\ApiHelper;
 use App\Models\Department;
+use App\Models\Direction;
 use App\Models\Science;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Form;
@@ -56,6 +57,11 @@ class ScienceController extends AdminController
             return '';
         });
 
+        $grid->column('direction_id', __('Direction'))->display(function ($directionId) {
+            $direction = Direction::find($directionId);
+            return $direction ? $direction->name : null;
+        });
+
         return $grid;
     }
 
@@ -85,13 +91,16 @@ class ScienceController extends AdminController
     protected function form()
     {
         $departments = Department::pluck('name', 'id');
-
+        $directions = Direction::pluck('name', 'id');
         $form = new Form(new Science());
 
         $form->select('department_id', 'Kafedra')
             ->options($departments)
             ->required();
 
+        $form->multipleSelect('directions', "Yo'nalishlar")
+            ->options($directions)
+            ->required();
         $form->textarea('name', __('Fan nomi'))->required();
 
         $form->checkbox('course', 'Kurslar')->options([

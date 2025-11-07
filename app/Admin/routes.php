@@ -1,5 +1,6 @@
 <?php
 
+use App\Admin\Controllers\DirectionsController;
 use Illuminate\Routing\Router;
 
 Admin::routes();
@@ -13,6 +14,7 @@ Route::group([
     $router->get('/', 'HomeController@chart')->name('admin.home');
     $router->resource('education-years', educationYearsController::class);
     $router->resource('departments', departmentController::class);
+    $router->resource('directions', 'DirectionsController');
     $router->resource('categories-books', CategoryBooksController::class);
     $router->resource('books-lessons', BooksLessonAndManualController::class);
     $router->resource('science', ScienceController::class);
@@ -32,7 +34,7 @@ Route::group([
     $router->get('/api/authors', 'ApiController@authors')->name('admin.authors');
     $router->get('/api/publishings', 'ApiController@publishings')->name('admin.publishings');
     $router->get('/api/sciences', 'ApiController@getSciencesByDepartments')->name('admin.getSciencesByDepartments');
-
+    $router->get('/api/directions-by-subject', 'ApiController@getDirectionsBySubject');
 
 
 

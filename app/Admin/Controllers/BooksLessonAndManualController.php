@@ -8,6 +8,7 @@ use App\Models\Books;
 use App\Models\BooksLessonAndManual;
 use App\Models\CategoriesBooks;
 use App\Models\Department;
+use App\Models\Direction;
 use App\Models\EducationYears;
 use App\Models\Langs;
 use App\Models\Publishing;
@@ -84,6 +85,15 @@ class BooksLessonAndManualController extends AdminController
         $grid->column('b_lang', __('Til'))->display(function ($model) {
             return $this->lang->name;
         });
+
+        // Add this new column for directions
+        $grid->column('direction', __("Yo'nalishlar"))->display(function ($model) {
+            $directions = Direction::whereHas('sciences', function ($query) {
+                $query->where('science_id', $this->lib_subject);
+            })->pluck('name')->toArray();
+
+            return implode(', ', $directions);
+        });
         // $grid->column('b_read_lang', __('B read lang'));
         $grid->column('b_published_year', __('Chop etilgan'));
         $grid->column('b_publishing', __('Nashiryot'))->display(function ($model) {
@@ -144,46 +154,60 @@ class BooksLessonAndManualController extends AdminController
 
         $form->column(1 / 2, function ($form) {
             $form->text('title', __('Nomi'))->required();
-            $form->select('author', 'Muallif')->options(function ($id) {
-                $Authors = Authors::find($id);
-                if ($Authors) {
-                    return [$Authors->id => $Authors->name];
-                }
-            })->ajax('/admin/api/authors')->required();
 
-            $form->select('category_id', __('Kategoriya'))->options(CategoriesBooks::where('sts', 1)->whereIn('id', [40, 41])->pluck('name', 'id'))->required();
-
-            $form->select('b_publishing', 'Nashiryot')->options(function ($id) {
-                $publishings = Publishing::find($id);
-                if ($publishings) {
-                    return [$publishings->id => $publishings->name];
-                }
-            })->ajax('/admin/api/publishings')->required();
-
-            $form->select('department', 'Kafedralar')->options(Department::pluck('name', 'id'))->load('lib_subject', '/admin/api/sciences')->required();
-
-            $form->select('education_years', 'O`quv yilli')->options(EducationYears::orderBy('code')->pluck('name', 'id'))->required();
-
-            // Fanlar: DESC
-            $form->select('lib_subject', 'Fanlar')
-                ->options(Science::orderBy('created_at', 'desc')->pluck('name', 'id'))
+            $form->select('author', 'Muallif')
+                ->options(function ($id) {
+                    $author = Authors::find($id);
+                    return $author ? [$author->id => $author->name] : [];
+                })
+                ->ajax('/admin/api/authors')
                 ->required();
 
-            $form->multipleSelect('course', 'Kursni tanlang')
-                ->options([
-                    '1' => '1 - kurs',
-                    '2' => '2 - kurs',
-                    '3' => '3 - kurs',
-                    '4' => '4 - kurs',
-                    '5' => '5 - kurs',
-                    '6' => '6 - kurs'
-                ]);
+            $form->select('category_id', __('Kategoriya'))
+                ->options(CategoriesBooks::where('sts', 1)->whereIn('id', [40, 41])->pluck('name', 'id'))
+                ->required();
 
-            $form->image('img', __('Muqova'))->thumbnail('small', $width = 300, $height = 420)->required();
+            $form->select('b_publishing', 'Nashiryot')
+                ->options(function ($id) {
+                    $publishing = Publishing::find($id);
+                    return $publishing ? [$publishing->id => $publishing->name] : [];
+                })
+                ->ajax('/admin/api/publishings')
+                ->required();
+
+            $form->select('department', 'Kafedralar')
+                ->options(Department::pluck('name', 'id'))
+                ->load('lib_subject', '/admin/api/sciences')
+                ->required();
+
+            $form->select('education_years', 'O‘quv yili')
+                ->options(EducationYears::orderBy('code')->pluck('name', 'id'))
+                ->required();
+
+            $form->select('lib_subject', 'Fanlar')
+                ->options(Science::pluck('name', 'id'))
+                ->required()
+                ->load('direction', '/admin/api/directions-by-subject');
+
+            $form->multipleSelect('direction', "Yo‘nalishlar")
+                ->options(function ($ids) {
+                    return Direction::whereIn('id', (array)$ids)->pluck('name', 'id');
+                });
+
+            $form->multipleSelect('course', 'Kursni tanlang')->options([
+                '1' => '1 - kurs',
+                '2' => '2 - kurs',
+                '3' => '3 - kurs',
+                '4' => '4 - kurs',
+                '5' => '5 - kurs',
+                '6' => '6 - kurs',
+            ]);
+
+            $form->image('img', __('Muqova'))->thumbnail('small', 300, 420)->required();
             $form->select('b_lang', __('Til'))->options(Langs::all()->pluck('name', 'id'))->required();
             $form->select('b_read_lang', __('Yozuv'))->options(Books::reads())->required();
             $form->file('file_path', __('File'))->required();
-            $form->textarea('desc', __('Anatatsiya'))->rows(5)->required();
+            $form->textarea('desc', __('Annotatsiya'))->rows(5)->required();
         });
 
         $form->column(1 / 2, function ($form) {
@@ -192,11 +216,11 @@ class BooksLessonAndManualController extends AdminController
             $form->number('b_page_count', __('Sahifalar soni'));
             $form->number('user_id', __('User id'))->default(1)->required();
             $form->date('b_published_year', __('Nashr yili'))->format('YYYY')->default(date('Y'));
-            $form->text('telegram_msg_id', __('TELEGRAM ID'));
-            $form->number('view_count', __('Ko\'rishlar soni'));
+            $form->text('telegram_msg_id', __('Telegram ID'));
+            $form->number('view_count', __('Ko‘rishlar soni'));
         });
 
-        // 1) Science -> course mappingni tayyorlaymiz
+        // Fan -> kurs mapping
         $mapping = Science::select('id', 'course')->get()->map(function ($s) {
             $courses = $s->course;
             if (is_string($courses)) {
@@ -215,13 +239,8 @@ class BooksLessonAndManualController extends AdminController
             return ['id' => (string)$s->id, 'courses' => $normalized];
         })->keyBy('id')->toArray();
 
-        // 2) JSON’ni data-attribute sifatida sahifaga joylaymiz
         $json = htmlspecialchars(json_encode($mapping), ENT_QUOTES, 'UTF-8');
-
-        // 3) Form HTML’iga yashirin container qo‘shamiz
-        Admin::html('<div id="science-courses-map" data-map="'.$json.'" style="display:none"></div>');
-
-        // 4) JS — lib_subject o‘zgarganda course’ni to‘ldirish
+        Admin::html('<div id="science-courses-map" data-map="' . $json . '" style="display:none"></div>');
         Admin::script(<<<'JS'
 (function() {
   function getScienceMap() {
@@ -254,6 +273,24 @@ class BooksLessonAndManualController extends AdminController
 JS
         );
 
+        Admin::script(<<<'JS'
+$(document).on('change', "select[name='lib_subject']", function() {
+    var subjectId = $(this).val();
+    var $direction = $("select[name='direction[]']");
+    if (!subjectId || !$direction.length) return;
+
+    $.get('/admin/api/directions-by-subject', { q: subjectId }, function(data) {
+        $direction.empty();
+        $.each(data, function(id, name) {
+            $direction.append(new Option(name, id, true, true));
+        });
+        $direction.trigger('change');
+    });
+});
+JS
+        );
+
         return $form;
     }
+
 }

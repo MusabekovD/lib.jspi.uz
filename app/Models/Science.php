@@ -11,11 +11,11 @@ class Science extends Model
 
     protected $table = 'science';
 
-    protected $fillable = ['department_id','name'];
+    protected $fillable = ['department_id', 'name', 'course'];
     protected $casts = [
         'course' => 'array',
     ];
-    
+
 
     public function books()
     {
@@ -24,5 +24,9 @@ class Science extends Model
     public function department()
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+    public function directions()
+    {
+        return $this->belongsToMany(Direction::class, 'direction_science', 'science_id', 'direction_id');
     }
 }

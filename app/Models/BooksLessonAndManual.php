@@ -15,6 +15,7 @@ class BooksLessonAndManual extends Model
     protected $casts = [
         'course' => 'array',
         'department' => 'array',
+        'direction' => 'array',
     ];
 
 //    public static function whereJsonContains(string $string, int $param)

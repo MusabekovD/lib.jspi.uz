@@ -3,11 +3,13 @@
 namespace App\Admin\Controllers;
 
 use App\Models\Authors;
+use App\Models\Direction;
 use App\Models\Publishing;
 use App\Models\Science;
 use Encore\Admin\Controllers\AdminController;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ApiController extends AdminController
@@ -33,4 +35,26 @@ class ApiController extends AdminController
         }
         return response()->json([]);
     }
+    public function getDirectionsBySubject(Request $request)
+    {
+        $subjectId = $request->get('q');
+
+        if (!$subjectId) {
+            return [];
+        }
+
+        $directionIds = DB::table('direction_science')
+            ->where('science_id', $subjectId)
+            ->pluck('direction_id')
+            ->toArray();
+
+        if (empty($directionIds)) {
+            return [];
+        }
+
+        return Direction::whereIn('id', $directionIds)
+            ->pluck('name', 'id');
+    }
+
+
 }
